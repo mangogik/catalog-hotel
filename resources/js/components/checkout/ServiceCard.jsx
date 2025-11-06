@@ -29,8 +29,8 @@ import {
     AlertCircle,
     CheckCircle,
     Info,
-    Minus, // <-- Impor ikon baru
-    Plus, // <-- Impor ikon baru
+    Minus,
+    Plus,
 } from "lucide-react";
 
 const formatIDR = (n) =>
@@ -110,27 +110,24 @@ const ServiceCard = ({
     const fKey = String(item?.fulfillment_type || "").toLowerCase();
     const fMeta = FULFILLMENT_META[fKey];
 
-    // =========================================================================
-    // === 👇 PERUBAHAN 1: Update 'isComplete' (mendukung object/array) 👇 ===
-    // =========================================================================
+    /* ---------- Completeness ---------- */
     const isComplete = useMemo(() => {
         if (type === "selectable" && !item?.details?.package) return false;
-        
+
         if (type === "multiple_options") {
             const packages = item?.details?.packages;
             if (!packages) return false;
-            
+
             if (Array.isArray(packages)) {
-                // Logika lama
                 if (packages.length === 0) return false;
-            } else if (typeof packages === 'object' && packages !== null) {
-                // Logika baru
-                if (Object.values(packages).every(qty => Number(qty) <= 0)) return false;
+            } else if (typeof packages === "object" && packages !== null) {
+                if (Object.values(packages).every((qty) => Number(qty) <= 0))
+                    return false;
             } else {
-                return false; // Format tidak valid
+                return false;
             }
         }
-        
+
         if (
             type === "per_unit" &&
             (item?.details?.weight === undefined ||
@@ -149,28 +146,23 @@ const ServiceCard = ({
         }
         return true;
     }, [item, type, questions]);
-    // =========================================================================
-    // === 👆 AKHIR PERUBAHAN 1 👆 ===
-    // =========================================================================
 
-
-    // =========================================================================
-    // === 👇 PERUBAHAN 2: Update 'totalPrice' (mendukung object/array) 👇 ===
-    // =========================================================================
+    /* ---------- Total Price ---------- */
     const totalPrice = useMemo(() => {
         if (type === "selectable") {
             const selectedOpt = opts.find(
                 (opt) => opt?.name === item?.details?.package
             );
-            // Kalikan dengan kuantitas utama
-            return (selectedOpt ? Number(selectedOpt.price || 0) : 0) * Number(item?.quantity || 1);
+            return (
+                (selectedOpt ? Number(selectedOpt.price || 0) : 0) *
+                Number(item?.quantity || 1)
+            );
         }
-        
+
         if (type === "multiple_options") {
             const packages = item?.details?.packages;
             if (!packages) return 0;
-            
-            // Logika lama (array): ["Nasi Goreng"]
+
             if (Array.isArray(packages)) {
                 return packages.reduce((sum, name) => {
                     const opt = opts.find((o) => o?.name === name);
@@ -178,114 +170,158 @@ const ServiceCard = ({
                 }, 0);
             }
 
-            // Logika baru (objek): {"Nasi Goreng": 2}
-            if (typeof packages === 'object' && packages !== null) {
+            if (typeof packages === "object" && packages !== null) {
                 return Object.keys(packages).reduce((sum, name) => {
                     const qty = Number(packages[name] || 0);
                     const opt = opts.find((o) => o?.name === name);
                     const price = opt ? Number(opt.price || 0) : 0;
-                    return sum + (price * qty);
+                    return sum + price * qty;
                 }, 0);
             }
-            
-            return 0; // Fallback
+
+            return 0;
         }
-        
+
         if (type === "per_unit") {
             const weight = Number(item?.details?.weight || 0);
             return weight * Number(item?.price_per_unit || 0);
         }
-        
-        // Tipe 'fixed'
+
         return Number(item?.quantity || 1) * Number(item?.price_per_unit || 0);
     }, [item, type, opts]);
-    // =========================================================================
-    // === 👆 AKHIR PERUBAHAN 2 👆 ===
-    // =========================================================================
-
 
     /* ---------- Collapsed quick facts ---------- */
-    const QuickFacts = () => (
-        <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 flex-wrap">
-                {/* Hanya tampilkan Qty utama jika 'fixed' atau 'selectable' */}
-                {(type === "fixed" || type === "selectable") && <Chip>Qty: {item?.quantity || 1}</Chip>}
+    const QuickFacts = () => {
+        // Helper untuk membatasi panjang teks
+        const truncateText = (text, maxLength = 15) => {
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength - 2) + "...";
+        };
 
-                {type === "selectable" && (
-                    <Chip>
-                        Paket:
-                        <span className="font-medium">
-                            {item?.details?.package || "—"}
-                        </span>
-                    </Chip>
-                )}
+        return (
+            <div className="mt-2 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {(type === "fixed" || type === "selectable") && (
+                        <Chip>Qty: {item?.quantity || 1}</Chip>
+                    )}
 
-                {type === "multiple_options" && (
-                    <Chip>
-                        Options:
-                        <span className="font-medium">
-                            {/* Hitung jumlah item dari format baru/lama */}
-                            {(() => {
-                                const pkgs = item?.details?.packages;
-                                if (Array.isArray(pkgs)) return pkgs.length;
-                                if (typeof pkgs === 'object' && pkgs !== null) {
-                                    return Object.values(pkgs).reduce((t, qty) => t + Number(qty), 0);
-                                }
-                                return 0;
-                            })()}
-                        </span>
-                    </Chip>
-                )}
-
-                {type === "per_unit" && (
-                    <Chip>
-                        {item?.details?.weight || 0} {item?.unit_name || "unit"}
-                    </Chip>
-                )}
-
-                {fMeta && (
-                    <HoverTip
-                        text={fMeta.desc}
-                        trigger={
-                            <span
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-[2px] text-[11px] ${fMeta.bg} ${fMeta.fg} border-transparent`}
-                            >
-                                <Info className="h-3.5 w-3.5" />
-                                {fMeta.label}
+                    {type === "selectable" && (
+                        <Chip>
+                            Paket:
+                            <span className="font-medium">
+                                {truncateText(item?.details?.package || "—")}
                             </span>
-                        }
-                    />
-                )}
+                        </Chip>
+                    )}
 
-                {!isComplete && (
-                    <Badge variant="destructive" className="text-[11px] h-5">
-                        Incomplete
-                    </Badge>
-                )}
-            </div>
+                    {type === "multiple_options" && (
+                        <>
+                            {(() => {
+                                const packages = item?.details?.packages;
+                                if (!packages) return <Chip>Options: 0</Chip>;
 
-            <div className="shrink-0 text-emerald-700 font-semibold">
-                {formatIDR(totalPrice)}
+                                let optionsList = [];
+                                if (Array.isArray(packages)) {
+                                    optionsList = packages.map((name) => ({
+                                        name,
+                                        qty: 1,
+                                    }));
+                                } else if (
+                                    typeof packages === "object" &&
+                                    packages !== null
+                                ) {
+                                    optionsList = Object.entries(packages)
+                                        .filter(([_, qty]) => Number(qty) > 0)
+                                        .map(([name, qty]) => ({
+                                            name,
+                                            qty: Number(qty),
+                                        }));
+                                }
+
+                                if (optionsList.length === 0)
+                                    return <Chip>Options: 0</Chip>;
+
+                                // Batasi jumlah opsi yang ditampilkan (maksimal 2)
+                                const visibleOptions = optionsList.slice(0, 2);
+                                const hasMore = optionsList.length > 2;
+
+                                return (
+                                    <>
+                                        {visibleOptions.map((opt, idx) => (
+                                            <Chip key={idx}>
+                                                <span className="font-medium">
+                                                    {truncateText(opt.name)}:{" "}
+                                                    {opt.qty}
+                                                </span>
+                                            </Chip>
+                                        ))}
+                                        {hasMore && (
+                                            <Chip>
+                                                <span className="font-medium">
+                                                    +{optionsList.length - 2}
+                                                </span>
+                                            </Chip>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </>
+                    )}
+
+                    {type === "per_unit" && (
+                        <Chip>
+                            {item?.details?.weight || 0}{" "}
+                            {item?.unit_name || "unit"}
+                        </Chip>
+                    )}
+
+                    {fMeta && (
+                        <HoverTip
+                            text={fMeta.desc}
+                            trigger={
+                                <span
+                                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-[2px] text-[11px] ${fMeta.bg} ${fMeta.fg} border-transparent`}
+                                >
+                                    <Info className="h-3.5 w-3.5" />
+                                    {fMeta.label}
+                                </span>
+                            }
+                        />
+                    )}
+
+                    {!isComplete && (
+                        <Badge
+                            variant="destructive"
+                            className="text-[11px] h-5"
+                        >
+                            Incomplete
+                        </Badge>
+                    )}
+                </div>
+
+                <div className="shrink-0 text-emerald-700 font-semibold">
+                    {formatIDR(totalPrice)}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     /* ---------- Option image lookup helper ---------- */
     const findOptionImage = (optionData) => {
-        if (!item?.option_images || typeof item.option_images !== 'object') {
+        if (!item?.option_images || typeof item.option_images !== "object") {
             return null;
         }
         let optionName, optionKey;
-        if (typeof optionData === 'string') {
+        if (typeof optionData === "string") {
             optionName = optionData;
             optionKey = optionData;
-        } else if (optionData && typeof optionData === 'object') {
-            optionName = optionData.name || optionData.option_name || 'unknown';
+        } else if (optionData && typeof optionData === "object") {
+            optionName = optionData.name || optionData.option_name || "unknown";
             optionKey = optionData.key || optionData.option_key || optionName;
         } else {
             return null;
         }
-        
+
         let imagesForOption = item.option_images[optionKey];
         if (!imagesForOption && optionName !== optionKey) {
             imagesForOption = item.option_images[optionName];
@@ -305,37 +341,32 @@ const ServiceCard = ({
         return firstImage?.url || null;
     };
 
-    // =========================================================================
-    // === 👇 PERUBAHAN 3: Handler baru untuk kuantitas 'multiple_options' 👇 ===
-    // =========================================================================
+    /* ---------- handler untuk kuantitas 'multiple_options' ---------- */
     const handlePackageQtyChange = (optionName, newQty) => {
         const qty = Math.max(0, parseInt(newQty, 10) || 0);
-        
+
         const currentPackages = item?.details?.packages;
         let newPackages = {};
 
-        // Konversi format lama (array) ke format baru (objek) jika perlu
         if (Array.isArray(currentPackages)) {
-            currentPackages.forEach(name => {
+            currentPackages.forEach((name) => {
                 newPackages[name] = 1;
             });
-        } else if (typeof currentPackages === 'object' && currentPackages !== null) {
+        } else if (
+            typeof currentPackages === "object" &&
+            currentPackages !== null
+        ) {
             newPackages = { ...currentPackages };
         }
 
-        // Terapkan perubahan kuantitas
         if (qty === 0) {
-            delete newPackages[optionName]; // Hapus item jika kuantitas 0
+            delete newPackages[optionName];
         } else {
             newPackages[optionName] = qty;
         }
 
         updateItemDetails(index, "packages", newPackages);
     };
-    // =========================================================================
-    // === 👆 AKHIR PERUBAHAN 3 👆 ===
-    // =========================================================================
-
 
     return (
         <Card
@@ -361,21 +392,39 @@ const ServiceCard = ({
                                 <CardTitle className="text-[15px] sm:text-base font-semibold text-slate-900 truncate">
                                     {item?.name || "Service"}
                                 </CardTitle>
-                                {item?.category && (
+                                {/* {item?.category && (
                                     <Badge
                                         variant="secondary"
                                         className="h-5 text-[11px]"
                                     >
-                                        {item.category.name ||
-                                            "Uncategorized"}
+                                        {typeof item.category === "string"
+                                            ? item.category
+                                            : item.category?.name ||
+                                              "Uncategorized"}
                                     </Badge>
-                                )}
+                                )} */}
                             </div>
 
-                            <CardDescription className="mt-0.5 text-xs sm:text-[13px] text-slate-600 line-clamp-1">
-                                {item?.description ||
-                                    "Premium service for your comfort"}
-                            </CardDescription>
+                            {/* =================================================================== */}
+                            {/* 👇👇👇 PERUBAHAN ADA DI SINI 👇👇👇                                    */}
+                            {/* =================================================================== */}
+                            {/* Ganti CardDescription dengan div untuk render HTML */}
+                            {item?.description_html ? (
+                                <div
+                                    className="prose prose-sm max-w-none text-slate-600 text-xs sm:text-[13px] leading-snug line-clamp-1 mt-0.5"
+                                    dangerouslySetInnerHTML={{
+                                        __html: item.description_html,
+                                    }}
+                                />
+                            ) : (
+                                <CardDescription className="mt-0.5 text-xs sm:text-[13px] text-slate-600 line-clamp-1">
+                                    {item?.description ||
+                                        "Premium service for your comfort"}
+                                </CardDescription>
+                            )}
+                            {/* =================================================================== */}
+                            {/* 👆👆👆 AKHIR DARI PERUBAHAN 👆👆👆                                 */}
+                            {/* =================================================================== */}
 
                             {!expanded && <QuickFacts />}
                         </div>
@@ -470,7 +519,8 @@ const ServiceCard = ({
                                         </SelectTrigger>
                                         <SelectContent>
                                             {opts.map((o, i) => {
-                                                const imgUrl = findOptionImage(o);
+                                                const imgUrl =
+                                                    findOptionImage(o);
                                                 return (
                                                     <SelectItem
                                                         key={i}
@@ -480,11 +530,13 @@ const ServiceCard = ({
                                                             {imgUrl ? (
                                                                 <img
                                                                     src={imgUrl}
-                                                                    alt={o?.name}
-                                                                    className="w-6 h-6 rounded-md border border-slate-200 object-cover"
+                                                                    alt={
+                                                                        o?.name
+                                                                    }
+                                                                    className="w-16 h-16 rounded-md border border-slate-200 object-cover"
                                                                 />
                                                             ) : (
-                                                                <div className="w-6 h-6 rounded-md border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-[9px] text-slate-400">
+                                                                <div className="w-16 h-16 rounded-md border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-[9px] text-slate-400">
                                                                     —
                                                                 </div>
                                                             )}
@@ -513,9 +565,6 @@ const ServiceCard = ({
                                 </div>
                             )}
 
-                            {/* ========================================================================= */}
-                            {/* === 👇 PERUBAHAN 4: UI Baru untuk 'multiple_options' 👇 === */}
-                            {/* ========================================================================= */}
                             {type === "multiple_options" && (
                                 <div className="space-y-1.5">
                                     <Label className="text-xs font-medium text-slate-700 flex items-center gap-1">
@@ -525,69 +574,122 @@ const ServiceCard = ({
                                         {opts.length ? (
                                             <div className="grid grid-cols-1 gap-2.5">
                                                 {opts.map((o, i) => {
-                                                    const currentPackages = item?.details?.packages || {};
-                                                    // Ambil kuantitas dari objek, baik itu format lama (array) atau baru (objek)
+                                                    const currentPackages =
+                                                        item?.details
+                                                            ?.packages || {};
                                                     let currentQty = 0;
-                                                    if (Array.isArray(currentPackages)) {
-                                                        currentQty = currentPackages.includes(o?.name) ? 1 : 0;
-                                                    } else if (typeof currentPackages === 'object') {
-                                                        currentQty = Number(currentPackages[o?.name] || 0);
+                                                    if (
+                                                        Array.isArray(
+                                                            currentPackages
+                                                        )
+                                                    ) {
+                                                        currentQty =
+                                                            currentPackages.includes(
+                                                                o?.name
+                                                            )
+                                                                ? 1
+                                                                : 0;
+                                                    } else if (
+                                                        typeof currentPackages ===
+                                                        "object"
+                                                    ) {
+                                                        currentQty = Number(
+                                                            currentPackages[
+                                                                o?.name
+                                                            ] || 0
+                                                        );
                                                     }
-                                                    
-                                                    const imgUrl = findOptionImage(o);
-                                                    
+
+                                                    const imgUrl =
+                                                        findOptionImage(o);
+
                                                     return (
                                                         <div
                                                             key={i}
                                                             className="flex items-center justify-between py-1"
                                                         >
-                                                            {/* Kiri: Gambar, Nama, Harga */}
                                                             <div className="flex items-center gap-2.5 min-w-0">
                                                                 {imgUrl ? (
-                                                                    <div className="relative group w-12 h-12 shrink-0 rounded-md overflow-hidden border border-slate-200 bg-white ">
+                                                                    <div className="relative group w-16 h-16 shrink-0 rounded-md overflow-hidden border border-slate-200 bg-white ">
                                                                         <img
-                                                                            src={imgUrl}
-                                                                            alt={o?.name}
+                                                                            src={
+                                                                                imgUrl
+                                                                            }
+                                                                            alt={
+                                                                                o?.name
+                                                                            }
                                                                             className="object-cover w-full h-full"
                                                                         />
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="w-8 h-8 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] text-slate-400">
+                                                                    <div className="w-16 h-16 shrink-0 rounded-md border border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] text-slate-400">
                                                                         N/A
                                                                     </div>
                                                                 )}
                                                                 <div className="min-w-0">
                                                                     <span className="text-sm font-medium text-slate-800 truncate block">
-                                                                        {o?.name || `Option #${i + 1}`}
+                                                                        {o?.name ||
+                                                                            `Option #${
+                                                                                i +
+                                                                                1
+                                                                            }`}
                                                                     </span>
                                                                     <span className="text-xs text-slate-500">
-                                                                        {formatIDR(o?.price || 0)}
+                                                                        {formatIDR(
+                                                                            o?.price ||
+                                                                                0
+                                                                        )}
                                                                     </span>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Kanan: Stepper Kuantitas */}
                                                             <div className="flex items-center gap-1.5 shrink-0">
                                                                 <Button
                                                                     variant="outline"
                                                                     size="icon"
                                                                     className="h-7 w-7"
-                                                                    onClick={() => handlePackageQtyChange(o?.name, currentQty - 1)}
-                                                                    disabled={currentQty <= 0}
+                                                                    onClick={() =>
+                                                                        handlePackageQtyChange(
+                                                                            o?.name,
+                                                                            currentQty -
+                                                                                1
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        currentQty <=
+                                                                        0
+                                                                    }
                                                                 >
                                                                     <Minus className="h-4 w-4" />
                                                                 </Button>
                                                                 <Input
                                                                     type="number"
-                                                                    value={currentQty}
-                                                                    onChange={(e) => handlePackageQtyChange(o?.name, e.target.value)}
+                                                                    value={
+                                                                        currentQty
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handlePackageQtyChange(
+                                                                            o?.name,
+                                                                            e
+                                                                                .target
+                                                                                .value
+                                                                        )
+                                                                    }
                                                                     className="h-7 w-12 text-center px-1"
                                                                 />
                                                                 <Button
                                                                     variant="outline"
                                                                     size="icon"
                                                                     className="h-7 w-7"
-                                                                    onClick={() => handlePackageQtyChange(o?.name, currentQty + 1)}
+                                                                    onClick={() =>
+                                                                        handlePackageQtyChange(
+                                                                            o?.name,
+                                                                            currentQty +
+                                                                                1
+                                                                        )
+                                                                    }
                                                                 >
                                                                     <Plus className="h-4 w-4" />
                                                                 </Button>
@@ -602,18 +704,15 @@ const ServiceCard = ({
                                             </div>
                                         )}
                                     </div>
-                                    {!isComplete && ( // Gunakan isComplete yang sudah diupdate
+                                    {!isComplete && (
                                         <p className="text-[11px] text-rose-500 flex items-center gap-1">
                                             <AlertCircle className="h-3 w-3" />{" "}
-                                            Please add a quantity for at least one option
+                                            Please add a quantity for at least
+                                            one option
                                         </p>
                                     )}
                                 </div>
                             )}
-                            {/* ========================================================================= */}
-                            {/* === 👆 AKHIR PERUBAHAN 4 👆 === */}
-                            {/* ========================================================================= */}
-
 
                             {type === "per_unit" && (
                                 <div className="space-y-1.5">
@@ -679,10 +778,6 @@ const ServiceCard = ({
 
                         {/* RIGHT COLUMN */}
                         <div className="space-y-3">
-                            
-                            {/* ========================================================================= */}
-                            {/* === 👇 PERUBAHAN 5: Sembunyikan Qty Utama untuk 'multiple_options' 👇 === */}
-                            {/* ========================================================================= */}
                             {(type === "fixed" || type === "selectable") && (
                                 <div className="space-y-1.5">
                                     <Label className="text-xs font-medium text-slate-700">
@@ -747,10 +842,6 @@ const ServiceCard = ({
                                     </div>
                                 </div>
                             )}
-                            {/* ========================================================================= */}
-                            {/* === 👆 AKHIR PERUBAHAN 5 👆 === */}
-                            {/* ========================================================================= */}
-
 
                             {/* Q&A */}
                             <div className="space-y-1.5">

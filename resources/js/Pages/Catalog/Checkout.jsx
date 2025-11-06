@@ -8,7 +8,7 @@ import React, {
 import { usePage } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Package } from "lucide-react";
-import ServiceCard from "@/components/checkout/ServiceCard"; // Ini akan kita edit selanjutnya
+import ServiceCard from "@/components/checkout/ServiceCard";
 import SummaryCard from "@/components/checkout/SummaryCard";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 
@@ -59,9 +59,6 @@ function getCsrfToken(props) {
     );
 }
 
-// =========================================================================
-// === 👇 PERUBAHAN 1: Update 'validateItemForType' 👇 ===
-// =========================================================================
 function validateItemForType(item) {
     const type = String(item?.type || "fixed");
     const details = item?.details || {};
@@ -77,21 +74,16 @@ function validateItemForType(item) {
             return { ok: false, reason: "Please choose at least one option." };
         }
         
-        // Cek format baru (objek) atau format lama (array)
         if (Array.isArray(packages)) {
-            // Logika lama: cek array
             if (packages.length === 0) {
                 return { ok: false, reason: "Please choose at least one option." };
             }
         } else if (typeof packages === 'object' && packages !== null) {
-            // Logika baru: cek objek
-            // Pastikan setidaknya satu value (kuantitas) lebih dari 0
             const hasItems = Object.values(packages).some(qty => Number(qty) > 0);
             if (!hasItems) {
                 return { ok: false, reason: "Please add a quantity for at least one option." };
             }
         } else {
-             // Format tidak dikenali
              return { ok: false, reason: "Invalid options format." };
         }
     }
@@ -111,10 +103,6 @@ function validateItemForType(item) {
 
     return { ok: true };
 }
-// =========================================================================
-// === 👆 AKHIR PERUBAHAN 1 👆 ===
-// =========================================================================
-
 
 /* ---------- cart sync utils (sinkron ke localStorage + event bus) ---------- */
 function broadcastCartChanged() {
@@ -170,6 +158,8 @@ function sanitizeItems(itemsRaw) {
                 fulfillment_type: it?.fulfillment_type ?? null,
                 offering_session: it?.offering_session ?? null,
                 description: it?.description ?? null,
+                description_html: it?.description_html ?? null,
+                // Pastikan category diambil dengan benar
                 category: it?.category ?? null,
                 image: it?.image ?? null,
                 option_images: it?.option_images ?? null,
@@ -278,6 +268,8 @@ export default function Checkout() {
                         price: Number(s.price || 0),
                         options,
                         description: s.description || null,
+                        description_html: s.description_html || null,
+                        // Pastikan category diambil dengan benar
                         category: s.category || null,
                         image: s.image || null,
                         fulfillment_type: s.fulfillment_type ?? null,
@@ -311,8 +303,14 @@ export default function Checkout() {
                     merged.unit_name = svc.unit_name;
                 if (!merged.description && svc.description)
                     merged.description = svc.description;
-                if (!merged.category && svc.category)
+                if (!merged.description_html && svc.description_html)
+                    merged.description_html = svc.description_html;
+                
+                // Perbaiki hydrasi category
+                if (!merged.category && svc.category) {
                     merged.category = svc.category;
+                }
+                
                 if (!merged.image && svc.image) merged.image = svc.image;
                 if (!merged.fulfillment_type && svc.fulfillment_type != null) {
                     merged.fulfillment_type = svc.fulfillment_type;
@@ -443,8 +441,6 @@ export default function Checkout() {
             }
             setLoadingPreview(true);
             try {
-                // Logika 'normalized' di sini sudah benar
-                // karena backend 'computeLines' menangani format baru
                 const normalized = items.map((it) => {
                     const type = String(it?.type || "fixed");
                     const details = { ...(it?.details || {}) };
@@ -503,7 +499,7 @@ export default function Checkout() {
     const isCartComplete = useMemo(() => {
         if (!items.length) return false;
         return items.every((item) => {
-            const basicValidation = validateItemForType(item); // Ini sudah diupdate
+            const basicValidation = validateItemForType(item);
             if (!basicValidation.ok) return false;
 
             const questions = svcQuestions[item.serviceId] || [];
@@ -574,8 +570,6 @@ export default function Checkout() {
 
         setPlacing(true);
         try {
-            // Logika 'normalized' di sini sudah benar
-            // karena backend 'computeLines' menangani format baru
             const normalized = items.map((it) => {
                 const type = String(it?.type || "fixed");
                 const d = { ...(it?.details || {}) };

@@ -378,8 +378,15 @@ export default function AuthenticatedLayout({ children }) {
         return allServices
             .filter((svc) => {
                 const name = (svc.name || "").toLowerCase();
-                const desc = (svc.description || "").toLowerCase();
-                const cat = (svc.category || "").toLowerCase();
+const desc = (svc.description || "").toLowerCase();
+
+// pastikan kategori bisa string atau object
+const catName =
+    typeof svc.category === "object"
+        ? (svc.category?.name || svc.category?.slug || "")
+        : (svc.category || "");
+const cat = catName.toLowerCase();
+
                 return name.includes(q) || desc.includes(q) || cat.includes(q);
             })
             .map((svc) => {

@@ -1,4 +1,3 @@
-// resources/js/Pages/Catalog.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { usePage } from "@inertiajs/react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -118,6 +117,10 @@ export default function Catalog() {
                     options: Array.isArray(it?.options) ? it.options : null,
                     fulfillment_type: it?.fulfillment_type ?? null,
                     offering_session: it?.offering_session ?? null,
+                    // Pastikan category diambil dengan benar
+                    category: it?.category ?? null,
+                    image: it?.image ?? null,
+                    option_images: it?.option_images ?? null,
                 };
             })
             .filter(Boolean);
@@ -229,6 +232,9 @@ export default function Catalog() {
             option_images: base.option_images ?? {},
             fulfillment_type: base.fulfillment_type ?? null,
             offering_session: base.offering_session ?? null,
+            // Pastikan category diambil dengan benar
+            category: base.category ?? null,
+            image: base.image ?? null,
         };
     }, []);
 
@@ -328,6 +334,10 @@ export default function Catalog() {
                                     svc.offering_session ??
                                     it.offering_session ??
                                     null,
+                                // Pastikan category diambil dengan benar
+                                category: svc.category ?? null,
+                                image: svc.image ?? null,
+                                option_images: svc.option_images ?? null,
                             };
                         });
 
@@ -376,7 +386,18 @@ export default function Catalog() {
         // Fungsi filter baru untuk kategori
         const matchCategory = (svc, catSlug) => {
             if (catSlug === "all") return true; // Tampilkan semua jika 'all' aktif
-            return (svc.category?.slug ?? null) === catSlug;
+            
+            // Handle jika category adalah string (dari backend)
+            if (typeof svc.category === 'string') {
+                return svc.category === catSlug;
+            }
+            
+            // Handle jika category adalah objek
+            if (svc.category && typeof svc.category === 'object') {
+                return svc.category.slug === catSlug;
+            }
+            
+            return false;
         };
 
         setServices(

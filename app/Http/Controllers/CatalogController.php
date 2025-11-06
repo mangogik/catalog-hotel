@@ -135,124 +135,115 @@ class CatalogController extends Controller
     /**
      * API daftar layanan untuk FE katalog.
      */
-    public function services(Request $req)
-    {
-        /** @var \App\Models\Booking $booking */
-        $booking = $req->attributes->get('booking');
+public function services(Request $req)
+{
+    /** @var \App\Models\Booking $booking */
+    $booking = $req->attributes->get('booking');
 
-        $requested      = $req->query('session');
-        $defaultSession = session('catalog_session', $this->detectSession($booking));
+    $requested      = $req->query('session');
+    $defaultSession = session('catalog_session', $this->detectSession($booking));
 
-        if ($requested === 'auto') {
-            $sessions = ['pre_checkin', 'post_checkin', 'pre_checkout'];
-        } else {
-            $pick     = $requested ?: $defaultSession;
-            $sessions = [$pick];
-        }
-
-        $services = Service::with([
-            'activeQuestion',
-            'images',
-            'optionImages',
-            'category:id,name,slug'
-        ])
-            ->whereIn('offering_session', $sessions)
-            ->orderBy('offering_session')
-            ->orderBy('name')
-            ->get()
-            ->map(function ($s) {
-                // normalize options
-                $options = $s->options;
-                if (is_string($options)) {
-                    $decoded = json_decode($options, true);
-                    $options = is_array($decoded) ? $decoded : [];
-                } elseif (!is_array($options)) {
-                    $options = [];
-                }
-
-                // normalize questions
-                $questions = $s->activeQuestion?->questions_json;
-                if (is_string($questions)) {
-                    $decoded = json_decode($questions, true);
-                    $questions = is_array($decoded) ? $decoded : [];
-                } elseif (!is_array($questions)) {
-                    $questions = [];
-                }
-
-                // general images
-                $generalImages = $s->images->map(function ($img) {
-                    return [
-                        'id'      => $img->id,
-                        'caption' => $img->caption,
-                        'url'     => $this->imagePublicUrl(
-                            $img->image_path,
-                            method_exists($img, 'getUrlAttribute') ? $img->url : null
-                        ),
-                    ];
-                })->values();
-
-                // option images
-                $optionImgsRaw = $s->optionImages->map(function ($img) {
-                    return [
-                        'id'          => $img->id,
-                        'option_key'  => $img->option_key,
-                        'option_name' => $img->option_name,
-                        'caption'     => $img->caption,
-                        'url'         => $this->imagePublicUrl(
-                            $img->image_path,
-                            method_exists($img, 'getUrlAttribute') ? $img->url : null
-                        ),
-                    ];
-                })->values();
-
-                $optionImagesGrouped = [];
-                foreach ($optionImgsRaw as $oi) {
-                    $key = $oi['option_key'] ?? 'unknown';
-                    $nameKey = $oi['option_name'] ?? 'unknown';
-                    if (!isset($optionImagesGrouped[$key])) {
-                        $optionImagesGrouped[$key] = [];
-                    }
-                    $optionImagesGrouped[$key][] = $oi;
-                    if ($nameKey !== $key && !isset($optionImagesGrouped[$nameKey])) {
-                        $optionImagesGrouped[$nameKey] = [];
-                        $optionImagesGrouped[$nameKey][] = $oi;
-                    }
-                }
-
-                return [
-                    'id'               => $s->id,
-                    'slug'             => $s->slug,
-                    'name'             => $s->name,
-                    'description'      => $s->description, 
-                    'description_html' => $s->description_html, // <-- Ini field baru Anda
-                    'type'             => $s->type,
-                    'fulfillment_type' => $s->fulfillment_type,
-                    'unit_name'        => $s->unit_name,
-                    'price'            => $s->price,
-                    'offering_session' => $s->offering_session,
-                    'category' => $s->category ? [
-                        'id' => $s->category->id,
-                        'name' => $s->category->name,
-                        'slug' => $s->category->slug,
-                    ] : null,
-                    'options'          => $options,
-                    'active_question'  => $s->activeQuestion
-                        ? ['questions_json' => $questions]
-                        : null,
-                    'images'           => $generalImages,
-                    'option_images'    => $optionImagesGrouped,
-                ];
-            });
-
-        $allCategories = \App\Models\ServiceCategory::orderBy('name')->get(['id', 'name', 'slug']);
-
-        return response()->json([
-            'services'       => $services,
-            'categories'     => $allCategories,
-            'sessions'       => $sessions,
-            'booking_status' => $booking->status,
-        ]);
+    if ($requested === 'auto') {
+        $sessions = ['pre_checkin', 'post_checkin', 'pre_checkout'];
+    } else {
+        $pick     = $requested ?: $defaultSession;
+        $sessions = [$pick];
     }
+
+    $services = Service::with([
+        'activeQuestion',
+        'images',
+        'optionImages',
+        'category:id,name,slug'
+    ])
+        ->whereIn('offering_session', $sessions)
+        ->orderBy('offering_session')
+        ->orderBy('name')
+        ->get()
+        ->map(function ($s) {
+            // normalize options
+            $options = $s->options;
+            if (is_string($options)) {
+                $decoded = json_decode($options, true);
+                $options = is_array($decoded) ? $decoded : [];
+            } elseif (!is_array($options)) {
+                $options = [];
+            }
+
+            // normalize questions
+            $questions = $s->activeQuestion?->questions_json;
+            if (is_string($questions)) {
+                $decoded = json_decode($questions, true);
+                $questions = is_array($decoded) ? $decoded : [];
+            } elseif (!is_array($questions)) {
+                $questions = [];
+            }
+
+            // general images
+            $generalImages = $s->images->map(function ($img) {
+                return [
+                    'id'      => $img->id,
+                    'caption' => $img->caption,
+                    'url'     => $this->imagePublicUrl(
+                        $img->image_path,
+                        method_exists($img, 'getUrlAttribute') ? $img->url : null
+                    ),
+                ];
+            })->values();
+
+            // option images
+            $optionImgsRaw = $s->optionImages->map(function ($img) {
+                return [
+                    'id'          => $img->id,
+                    'option_key'  => $img->option_key,
+                    'option_name' => $img->option_name,
+                    'caption'     => $img->caption,
+                    'url'         => $this->imagePublicUrl(
+                        $img->image_path,
+                        method_exists($img, 'getUrlAttribute') ? $img->url : null
+                    ),
+                ];
+            })->values();
+
+            $optionImagesGrouped = [];
+            foreach ($optionImgsRaw as $oi) {
+                $key = $oi['option_key'] ?? 'unknown';
+                $nameKey = $oi['option_name'] ?? 'unknown';
+                $optionImagesGrouped[$key][] = $oi;
+                if ($nameKey !== $key) $optionImagesGrouped[$nameKey][] = $oi;
+            }
+
+            return [
+                'id'               => $s->id,
+                'slug'             => $s->slug,
+                'name'             => $s->name,
+                'description'      => $s->description,
+                'description_html' => $s->description_html,
+                'type'             => $s->type,
+                'fulfillment_type' => $s->fulfillment_type,
+                'unit_name'        => $s->unit_name,
+                'price'            => $s->price,
+                'offering_session' => $s->offering_session,
+                'category'         => $s->category?->name, // ✅ hanya nama kategori (string)
+                'options'          => $options,
+                'active_question'  => $s->activeQuestion
+                    ? ['questions_json' => $questions]
+                    : null,
+                'images'           => $generalImages,
+                'option_images'    => $optionImagesGrouped,
+            ];
+        });
+
+    $allCategories = \App\Models\ServiceCategory::orderBy('name')->get(['id', 'name', 'slug']);
+
+    return response()->json([
+        'services'       => $services,
+        'categories'     => $allCategories,
+        'sessions'       => $sessions,
+        'booking_status' => $booking->status,
+    ]);
+}
+
 
     /**
      * Halaman detail service.
